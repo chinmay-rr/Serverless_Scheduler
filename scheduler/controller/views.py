@@ -21,10 +21,28 @@ from sklearn.metrics import mean_squared_error
 
 file_path = "/home/user/Documents/Serverless_Scheduler/SchedInfo.csv"
 file_path_2="/home/user/Documents/Serverless_Scheduler/joblist.csv"
-jobs_queue = []
-def handle_request_queue() :
+job_queue = []
+def handle_request_queue(request,service) :
+    if service.active:
+            # temp_time = datetime.now(tz=timezone(TIME_ZONE))
+            # response, provider, providing_time, job_id = request_handler(request, service, temp_time)
+            find_provider(service)
+    else:
+        messages.error(request, "This service is disabled")
+
+    # print("Response", response)
+    # return JsonResponse(
+    #               {'result': response['Result'],
+    #                'providing_time': providing_time,
+    #                'pull_time': response['pull_time'],
+    #                'run_time': response['run_time'],
+    #                'total_time': response['total_time'],
+    #                'provider': provider, 
+    #                'job_id': job_id})
+
     # do the logic
     #then call request_handler on each job that is assigned.
+
     pass
 def request_handler(data,service,start_time,run_async = False):
     print("In request handler.")
@@ -79,7 +97,7 @@ def request_handler(data,service,start_time,run_async = False):
     return response_decoded, provider.id, providing_time, str(job.id)
     #handle response
 
-def request_handler(data,service,start_time,run_async = False):
+def request_handler_1(data,service,start_time,run_async = False):
     # print("In request handler.")
     # provider = None
     # while(provider == None):
@@ -296,16 +314,25 @@ def joblist(assignment):
     status='waiting'
     for j,p in assignment.items():
         waiting_time=j.queue_time
-        dict_prov[p] = waiting_time,j,status
+        dict_prov[p].append(waiting_time,j,status)
     
 
     with open(file_path_2,mode='w') as csv_file:
         writer=csv_writer=csv.DictWriter(csv_file,fieldnames=['Provider'])
         writer.writeheader()
-        for val in dict_prov.values():
-            writer.writerow({'Provider':val})
+        for p,val in dict_prov.items():
+            writer.writerow({p:val})
+    
+def assign_jobs():
+    with open(file_path_2,mode='r') as csv_file:
+        csv_reader=csv.DictReader(csv_file)
+        for provider , job in csv_reader:
+            if job.status=='waiting':
+                job.status='running'
+                request_handler(job.data,job.service,job.start_time)            
         
-def find_providers_mincost(services):
+def find_providers_mincost(service):
+    job_queue.append(service)
     # TODOz
     ready_providers = User.objects.filter(
          active = True 
@@ -330,7 +357,7 @@ def find_providers_mincost(services):
     #             invocations = int(row['Invocations'])
 
     #             # Check if the row matches the criteria
-    #             if provider == str(provider_to_search.user_id) and function == (services.id - 7):
+    #             if provider == str(provider_to_search.user_id) and function == (service.id - 7):
     #                 provider_choices.append({'invocations': invocations, 'provider': provider_to_search.id})
     #                 # max_provider = provider
     #                 # max_invocations = invocations
@@ -339,7 +366,7 @@ def find_providers_mincost(services):
     # if (len(provider_choices)< 1) :
     #     max_provider = random.choice(ready_providers)
         
-    cost_matrix= get_predicted_runtimes(services)
+    cost_matrix= get_predicted_runtimes(job_queue)
     delay = {}
     if (len(provider_choices)==1):
         max_provider = get_object_or_404(User, pk=provider_choices[0])
@@ -347,13 +374,13 @@ def find_providers_mincost(services):
         # TODO
         # Here select the right code.
         # provider_choices.sort(key=lambda x: x['invocations'], reverse=True)
-        assignment , _ = minimize_total_cost(provider_choices, services, cost_matrix, delay)
+        assignment , _ = minimize_total_cost(provider_choices, service, cost_matrix, delay)
         joblist(assignment)
-        
+        assign_jobs()
         provider_choices.sort(key=lambda x: x['invocations'], reverse=True)
         max_provider = get_object_or_404(User, pk = random.choice(provider_choices[0:2])['provider'])
 
-def choice(max_provider):
+def choice(max_provider,service):
     print("Scheduler is chosing this provider -> ", max_provider)
     updated_data = []
     flag = False

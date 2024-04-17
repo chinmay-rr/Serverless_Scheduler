@@ -8,7 +8,7 @@ from profiles.models import User
 from developers.models import Services
 from providers.models import Job
 from django.core.exceptions import ObjectDoesNotExist
-from controller.views import request_handler, find_provider
+from controller.views import request_handler, find_provider,handle_request_queue
 from datetime import datetime
 from pytz import timezone
 from scheduler.settings import TIME_ZONE
@@ -16,7 +16,6 @@ from datetime import timedelta
 from django.views.decorators.csrf import csrf_exempt
 import json
 import threading
-
 def index(request):
     return render(request, 'developers_app/index.html')
 
@@ -126,6 +125,15 @@ def run_service(request, service_id):
                    'total_time': response['total_time'],
                    'provider': provider, 
                    'job_id': job_id})
+def run_service_temp(request, service_id):
+    response = ''
+    try:
+        service = Services.objects.get(id=service_id)
+        handle_request_queue(request, service)
+        messages.success(request, "Successfully sent a request to '{}' service of '{}'".format(service.name,
+                                                                                                   service.developer))
+    except:
+        pass
 
 def run_service_async(request, service_id):
     response = ''
