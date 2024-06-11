@@ -1,7 +1,7 @@
 from django.shortcuts import render, get_object_or_404
 from profiles.models import User
 from providers.models import Job
-from providers.views import publish_to_topic, publish_to_topic_mqtt
+from providers.views import publish_to_topic_mqtt
 from datetime import datetime, timedelta
 from pytz import timezone
 from scheduler.settings import TIME_ZONE
@@ -11,6 +11,7 @@ import fabric.views as fabric
 import json
 import csv
 import random
+from controller.mincost import minimize_total_cost
 # import zmq
 
 # # Create your views here.
@@ -151,7 +152,7 @@ def find_provider(service):
     return max_provider
 
 #have to add job_status get method 
-def find_providers_hungarian(service):
+def find_providers_mincost(service):
     # TODO
     ready_providers = User.objects.filter(
         active = True , ready = True , 
@@ -228,3 +229,9 @@ def find_providers_hungarian(service):
         csv_writer.writerows(updated_data)
 
     return max_provider
+
+def get_predicted_runtimes(services):
+    a=0
+    # returns providers list
+    # return cost_matrix with multiple invocations as different columns
+    
